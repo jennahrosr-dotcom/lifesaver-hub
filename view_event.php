@@ -1,6 +1,5 @@
 <?php
 session_start();
-
 $pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
@@ -122,38 +121,50 @@ $events = $stmt->fetchAll();
         }
 
         .actions {
-    display: flex;
-    gap: 8px;
-}
+            display: flex;
+            gap: 8px;
+        }
 
-.actions a {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 8px;
-    text-decoration: none;
-    color: white;
-    display: inline-block;
-    transition: background-color 0.3s ease;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
+        .actions a {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
 
-.actions .edit-btn {
-    background-color: #28a745;
-}
+        .actions .edit-btn {
+            background-color: #28a745;
+        }
 
-.actions .edit-btn:hover {
-    background-color: #218838;
-}
+        .actions .edit-btn:hover {
+            background-color: #218838;
+        }
 
-.actions .delete-btn {
-    background-color: #dc3545;
-}
+        .actions .delete-btn {
+            background-color: #dc3545;
+        }
 
-.actions .delete-btn:hover {
-    background-color: #c82333;
-}
+        .actions .delete-btn:hover {
+            background-color: #c82333;
+        }
 
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 8px;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .badge.upcoming { background-color: #007bff; }
+        .badge.today    { background-color: #28a745; }
+        .badge.past     { background-color: #6c757d; }
 
         @media (max-width: 768px) {
             .main {
@@ -225,9 +236,23 @@ $events = $stmt->fetchAll();
         </thead>
         <tbody>
             <?php if ($events): ?>
-                <?php foreach ($events as $e): ?>
+                <?php foreach ($events as $e): 
+                    $today = date('Y-m-d');
+                    $eventDate = $e['EventDate'];
+                    $statusBadge = '';
+
+                    if ($e['EventStatus'] === 'Deleted') {
+                        $statusBadge = '<span class="badge past">Past</span>';
+                    } elseif ($eventDate < $today) {
+                        $statusBadge = '<span class="badge past">Past</span>';
+                    } elseif ($eventDate === $today) {
+                        $statusBadge = '<span class="badge today"><i class="fas fa-bullseye"></i> Today</span>';
+                    } else {
+                        $statusBadge = '<span class="badge upcoming">Upcoming</span>';
+                    }
+                ?>
                     <tr>
-                        <td><?= htmlspecialchars($e['EventTitle']) ?></td>
+                        <td><?= htmlspecialchars($e['EventTitle']) ?> <?= $statusBadge ?></td>
                         <td><?= htmlspecialchars($e['EventDescription']) ?></td>
                         <td><?= htmlspecialchars($e['EventDate']) ?></td>
                         <td><?= htmlspecialchars($e['EventDay']) ?></td>
@@ -235,8 +260,8 @@ $events = $stmt->fetchAll();
                         <td><?= htmlspecialchars($e['EventStatus']) ?></td>
                         <?php if ($isStaff): ?>
                             <td class="actions">
-                             <a href="update_event.php?id=<?= $e['EventID'] ?>" class="edit-btn"><i class="fas fa-edit"></i> Edit</a>
-                             <a href="delete_event.php?id=<?= $e['EventID'] ?>" class="delete-btn" onclick="return confirm('Are you sure to delete this event?')"><i class="fas fa-trash-alt"></i> Delete</a>
+                                <a href="update_event.php?id=<?= $e['EventID'] ?>" class="edit-btn"><i class="fas fa-edit"></i> Edit</a>
+                                <a href="delete_event.php?id=<?= $e['EventID'] ?>" class="delete-btn" onclick="return confirm('Are you sure to delete this event?')"><i class="fas fa-trash-alt"></i> Delete</a>
                             </td>
                         <?php endif; ?>
                     </tr>

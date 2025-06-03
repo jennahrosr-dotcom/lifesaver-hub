@@ -1,4 +1,9 @@
 <?php
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'vendor/autoload.php'; // PHPMailer autoload
+
 session_start();
 if (!isset($_SESSION['student_id'])) {
     header("Location: index.php");
@@ -13,41 +18,58 @@ $studentId = $_SESSION['student_id'];
 $success = "";
 $error = "";
 
-// Fetch student email
+// Fetch student details
 $studentStmt = $pdo->prepare("SELECT * FROM student WHERE StudentID = ?");
 $studentStmt->execute([$studentId]);
 $student = $studentStmt->fetch();
 
-// Fetch eligible events (Upcoming, not Deleted)
-$events = $pdo->query("SELECT * FROM event WHERE EventStatus = 'Upcoming'")->fetchAll();
+// Fetch upcoming events only
+$events = $pdo->query("SELECT * FROM event WHERE EventStatus = 'Upcoming' AND EventDate >= CURDATE()")->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['event_id'])) {
     $eventId = $_POST['event_id'];
 
-    // Insert into registration
-    $stmt = $pdo->prepare("INSERT INTO registration (RegistrationDate, RegistrationStatus, AttendanceStatus, StudentID, EventID) VALUES (CURDATE(), 'Registered', 'Pending', ?, ?)");
-    $stmt->execute([$studentId, $eventId]);
-    $registrationId = $pdo->lastInsertId();
-
-    // Send notification
+    // Validate event date
     $eventStmt = $pdo->prepare("SELECT * FROM event WHERE EventID = ?");
     $eventStmt->execute([$eventId]);
     $event = $eventStmt->fetch();
 
-    $title = "Donation Application";
-    $message = "You have applied for the event: " . $event['EventTitle'] . " on " . $event['EventDate'];
-    $notify = $pdo->prepare("INSERT INTO notification (NotificationTitle, NotificationMessage, NotificationDate, NotificationIsRead, RegistrationID) VALUES (?, ?, CURDATE(), 0, ?)");
-    $notify->execute([$title, $message, $registrationId]);
+    if (!$event || strtotime($event['EventDate']) < strtotime(date('Y-m-d'))) {
+        $error = "You cannot apply for past events.";
+    } else {
+        // Register student for event
+        $stmt = $pdo->prepare("INSERT INTO registration (RegistrationDate, RegistrationStatus, AttendanceStatus, StudentID, EventID) VALUES (CURDATE(), 'Registered', 'Pending', ?, ?)");
+        $stmt->execute([$studentId, $eventId]);
+        $registrationId = $pdo->lastInsertId();
 
-    // Send email
-    $to = $student['StudentEmail'];
-    $subject = "Blood Donation Confirmation";
-    $body = "Dear " . $student['StudentName'] . ",\n\nThank you for applying to donate blood at the event: " . $event['EventTitle'] . ".\nPlease attend on " . $event['EventDate'] . " at " . $event['EventVenue'] . ".\n\n- LifeSaver Hub";
-    $headers = "From: lifesaverhub@example.com";
+        // Insert notification
+        $title = "Donation Application";
+        $message = "You have applied for the event: " . $event['EventTitle'] . " on " . $event['EventDate'];
+        $notify = $pdo->prepare("INSERT INTO notification (NotificationTitle, NotificationMessage, NotificationDate, NotificationIsRead, RegistrationID) VALUES (?, ?, CURDATE(), 'Unread', ?)");
+        $notify->execute([$title, $message, $registrationId]);
 
-    mail($to, $subject, $body, $headers);
+        // Send confirmation email via PHPMailer
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host = 'smtp.example.com'; // 🔧 your SMTP server
+            $mail->SMTPAuth = true;
+            $mail->Username = 'your_email@example.com';
+            $mail->Password = 'your_password';
+            $mail->SMTPSecure = 'tls';
+            $mail->Port = 587;
 
-    $success = "Application successful. Please check your email and notifications.";
+            $mail->setFrom('lifesaverhub@example.com', 'LifeSaver Hub');
+            $mail->addAddress($student['StudentEmail'], $student['StudentName']);
+            $mail->Subject = 'Blood Donation Confirmation';
+            $mail->Body = "Dear {$student['StudentName']},\n\nThank you for applying to donate blood at: {$event['EventTitle']}.\nPlease attend on {$event['EventDate']} at {$event['EventVenue']}.\n\n- LifeSaver Hub";
+
+            $mail->send();
+            $success = "Application successful. Confirmation email sent.";
+        } catch (Exception $e) {
+            $error = "Application submitted, but email could not be sent. Error: " . $mail->ErrorInfo;
+        }
+    }
 }
 ?>
 
@@ -64,23 +86,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['event_id'])) {
     </style>
 </head>
 <body>
-    <div class="form-box">
-        <h2>Apply for Blood Donation</h2>
-        <?php if ($success): ?><p class="success"><?= $success ?></p><?php endif; ?>
-        <?php if ($error): ?><p class="error"><?= $error ?></p><?php endif; ?>
+<div class="form-box">
+    <h2>Apply for Blood Donation</h2>
+    <?php if ($success): ?><p class="success"><?= $success ?></p><?php endif; ?>
+    <?php if ($error): ?><p class="error"><?= $error ?></p><?php endif; ?>
 
-        <form method="POST">
-            <label>Select an Event:</label>
-            <select name="event_id" required>
-                <option value="">-- Choose an Event --</option>
-                <?php foreach ($events as $event): ?>
-                    <option value="<?= $event['EventID'] ?>">
-                        <?= htmlspecialchars($event['EventTitle']) ?> on <?= $event['EventDate'] ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <button type="submit">Apply</button>
-        </form>
-    </div>
+    <form method="POST">
+        <label>Select an Event:</label>
+        <select name="event_id" required>
+            <option value="">-- Choose an Event --</option>
+            <?php foreach ($events as $event): ?>
+                <option value="<?= $event['EventID'] ?>">
+                    <?= htmlspecialchars($event['EventTitle']) ?> on <?= $event['EventDate'] ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit">Apply</button>
+    </form>
+</div>
 </body>
 </html>
