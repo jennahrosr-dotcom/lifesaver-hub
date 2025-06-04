@@ -22,16 +22,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_event'])) {
     $day = $_POST['day'];
     $venue = trim($_POST['venue']);
 
+    // Fallback: Calculate day if JavaScript is disabled
+    if (!$day && $date) {
+        $day = date('l', strtotime($date));
+    }
+
     if (!$title || !$description || !$date || !$day || !$venue) {
         $errors[] = "All fields are required.";
     } elseif (strtotime($date) < strtotime(date('Y-m-d'))) {
         $errors[] = "Event date cannot be in the past.";
     } else {
-        $status = (strtotime($date) > strtotime(date('Y-m-d'))) ? 'Upcoming' : 'Ongoing';
-        $stmt = $pdo->prepare("INSERT INTO event (EventTitle, EventDescription, EventDate, EventDay, EventVenue, EventStatus, StaffID) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$title, $description, $date, $day, $venue, $status, $staffId]);
-        $success = "Event created successfully.";
+        if ($date > date('Y-m-d')) {
+            $status = 'Upcoming';
+        } elseif ($date == date('Y-m-d')) {
+            $status = 'Ongoing';
+        } else {
+            $status = 'Past';
+        }
+
+        try {
+            // Begin transaction
+            $pdo->beginTransaction();
+
+            // Insert the event
+            $stmt = $pdo->prepare("INSERT INTO event (EventTitle, EventDescription, EventDate, EventDay, EventVenue, EventStatus, StaffID) 
+                                   VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$title, $description, $date, $day, $venue, $status, $staffId]);
+            
+            // Get the newly created event ID
+            $eventId = $pdo->lastInsertId();
+            
+            // Create a general registration record for notification purposes
+            $generalRegStmt = $pdo->prepare("INSERT INTO registration (StudentID, EventID, RegistrationDate, RegistrationStatus, AttendanceStatus) VALUES (0, ?, NOW(), 'General', 'N/A')");
+            $generalRegStmt->execute([$eventId]);
+            $generalRegistrationId = $pdo->lastInsertId();
+            
+            // Create notification for the event (using the general registration)
+            $notificationTitle = "New Blood Donation Event: " . $title;
+            $notificationMessage = "🩸 A new blood donation event has been scheduled!\n\n" .
+                                 "📅 Event: " . $title . "\n" .
+                                 "📆 Date: " . $date . " (" . $day . ")\n" .
+                                 "📍 Venue: " . $venue . "\n\n" .
+                                 "📝 Description: " . $description . "\n\n" .
+                                 "💡 Click 'Interested' if you'd like to participate and get automatically registered for this event!";
+            
+            $insertNotification = $pdo->prepare("INSERT INTO notification (NotificationTitle, NotificationMessage, NotificationDate, NotificationIsRead, RegistrationID) 
+                                               VALUES (?, ?, NOW(), '0', ?)");
+            $insertNotification->execute([$notificationTitle, $notificationMessage, $generalRegistrationId]);
+            
+            // Commit transaction
+            $pdo->commit();
+            
+            $success = "Event created successfully and notification has been posted for all students to see.";
+            
+        } catch (Exception $e) {
+            // Rollback transaction on error
+            $pdo->rollback();
+            $errors[] = "Error creating event: " . $e->getMessage();
+        }
     }
 }
 
@@ -58,6 +106,7 @@ $events = $pdo->prepare($sql);
 $events->execute($params);
 $eventList = $events->fetchAll();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,6 +161,7 @@ $eventList = $events->fetchAll();
             margin-bottom: 15px;
             border: 1px solid #ccc;
             border-radius: 8px;
+            box-sizing: border-box;
         }
         button {
             background-color: #d62828;
@@ -127,9 +177,17 @@ $eventList = $events->fetchAll();
         }
         .success {
             color: green;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
         }
         .error {
             color: red;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
         }
         table {
             width: 100%;
@@ -147,33 +205,52 @@ $eventList = $events->fetchAll();
             background-color: #1d3557;
             color: white;
         }
+        .filter-form {
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .filter-form input, .filter-form select {
+            width: 200px;
+            margin-right: 10px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
     <h2>LifeSaver Hub</h2>
-    <a href="staff_account.php"><i class="fas fa-user"></i> My Account</a>
-    <a href="create_event.php"><i class="fas fa-calendar-plus"></i> Create Event</a>
-    <a href="view_event.php"><i class="fas fa-calendar"></i> View Events</a>
-    <a href="view_donation.php"><i class="fas fa-hand-holding-heart"></i> View Donations</a>
-    <a href="confirm_attendance.php"><i class="fas fa-check"></i> Confirm Attendance</a>
-    <a href="update_application.php"><i class="fas fa-sync"></i> Update Application</a>
-    <a href="create_reward.php"><i class="fas fa-gift"></i> Create Rewards</a>
-    <a href="generate_report.php"><i class="fas fa-chart-line"></i> Generate Report</a>
-    <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    <a href="staff_account.php">My Account</a>
+    <a href="create_event.php">Create Event</a>
+    <a href="view_event.php">View Events</a>
+    <a href="view_donation.php">View Donations</a>
+    <a href="confirm_attendance.php">Confirm Attendance</a>
+    <a href="update_application.php">Update Application</a>
+    <a href="create_reward.php">Create Rewards</a>
+    <a href="generate_report.php">Generate Report</a>
+    <a href="logout.php">Logout</a>
 </div>
 
 <div class="container">
     <h1>Create a New Event</h1>
 
-    <?php if ($success): ?><p class="success"><?= $success ?></p><?php endif; ?>
-    <?php foreach ($errors as $e): ?><p class="error"><?= $e ?></p><?php endforeach; ?>
+    <?php if ($success): ?><p class="success"><?= htmlspecialchars($success) ?></p><?php endif; ?>
+    <?php foreach ($errors as $e): ?><p class="error"><?= htmlspecialchars($e) ?></p><?php endforeach; ?>
 
     <form method="POST">
-        <input type="text" name="title" placeholder="Event Title" required>
-        <textarea name="description" placeholder="Event Description" rows="4" required></textarea>
+        <label for="title">Event Title:</label>
+        <input type="text" name="title" id="title" placeholder="e.g., Blood Donation Drive 2025" required>
+        
+        <label for="description">Event Description:</label>
+        <textarea name="description" id="description" placeholder="Describe the event details, requirements, and what to expect..." rows="4" required></textarea>
+        
+        <label for="date">Event Date:</label>
         <input type="date" name="date" id="date" required>
+        
+        <label for="day">Day of Week:</label>
         <select name="day" id="day" required>
             <option value="">Select Day</option>
             <option value="Sunday">Sunday</option>
@@ -184,14 +261,41 @@ $eventList = $events->fetchAll();
             <option value="Friday">Friday</option>
             <option value="Saturday">Saturday</option>
         </select>
-        <input type="text" name="venue" placeholder="Event Venue" required>
-        <button type="submit" name="add_event">Create Event</button>
+        
+        <label for="venue">Event Venue:</label>
+        <input type="text" name="venue" id="venue" placeholder="e.g., University Main Hall, Room 101" required>
+        
+        <button type="submit" name="add_event">Create Event & Notify Students</button>
+    </form>
+
+    <h2>Filter Events</h2>
+    <form method="GET" class="filter-form">
+        <label for="filter_date">Filter by Date:</label>
+        <input type="date" name="filter_date" id="filter_date" value="<?= htmlspecialchars($_GET['filter_date'] ?? '') ?>">
+        
+        <label for="filter_status">Filter by Status:</label>
+        <select name="filter_status" id="filter_status">
+            <option value="">All</option>
+            <option value="Upcoming" <?= (($_GET['filter_status'] ?? '') === 'Upcoming') ? 'selected' : '' ?>>Upcoming</option>
+            <option value="Ongoing" <?= (($_GET['filter_status'] ?? '') === 'Ongoing') ? 'selected' : '' ?>>Ongoing</option>
+            <option value="Past" <?= (($_GET['filter_status'] ?? '') === 'Past') ? 'selected' : '' ?>>Past</option>
+        </select>
+        
+        <button type="submit">Apply Filters</button>
+        <a href="create_event.php" style="margin-left: 10px; color: #1d3557; text-decoration: none;">Clear Filters</a>
     </form>
 
     <h2>All Events</h2>
     <table>
         <thead>
-            <tr><th>Title</th><th>Date</th><th>Day</th><th>Venue</th><th>Status</th></tr>
+            <tr>
+                <th>Title</th>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Venue</th>
+                <th>Status</th>
+                <th>Created By</th>
+            </tr>
         </thead>
         <tbody>
         <?php if ($eventList): foreach ($eventList as $e): ?>
@@ -200,21 +304,37 @@ $eventList = $events->fetchAll();
                 <td><?= htmlspecialchars($e['EventDate']) ?></td>
                 <td><?= htmlspecialchars($e['EventDay']) ?></td>
                 <td><?= htmlspecialchars($e['EventVenue']) ?></td>
-                <td><?= htmlspecialchars($e['EventStatus']) ?></td>
+                <td>
+                    <span style="
+                        padding: 3px 8px; 
+                        border-radius: 12px; 
+                        font-size: 12px; 
+                        font-weight: bold;
+                        background-color: <?= $e['EventStatus'] === 'Upcoming' ? '#d4edda' : ($e['EventStatus'] === 'Ongoing' ? '#fff3cd' : '#f8d7da') ?>;
+                        color: <?= $e['EventStatus'] === 'Upcoming' ? '#155724' : ($e['EventStatus'] === 'Ongoing' ? '#856404' : '#721c24') ?>;
+                    ">
+                        <?= htmlspecialchars($e['EventStatus']) ?>
+                    </span>
+                </td>
+                <td>Staff ID: <?= htmlspecialchars($e['StaffID']) ?></td>
             </tr>
         <?php endforeach; else: ?>
-            <tr><td colspan="5">No events found.</td></tr>
+            <tr><td colspan="6" style="text-align: center; color: #666;">No events found.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>
 </div>
 
 <script>
+    // Auto-fill day when date is selected
     document.getElementById('date').addEventListener('change', function() {
         const date = new Date(this.value);
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         document.getElementById('day').value = days[date.getDay()];
     });
+
+    // Set minimum date to today
+    document.getElementById('date').min = new Date().toISOString().split('T')[0];
 </script>
 
 </body>
