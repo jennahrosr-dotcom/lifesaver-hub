@@ -24,6 +24,31 @@ if ($hour < 12) {
 } else {
     $greeting = "Good Evening";
 }
+
+// Fetch real statistics from database
+try {
+    // Count active events (assuming you have an events table)
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM events WHERE EventDate >= CURDATE()");
+    $activeEvents = $stmt->fetch()['count'] ?? 0;
+    
+    // Count total donations (assuming you have a donations table)
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM donations");
+    $totalDonations = $stmt->fetch()['count'] ?? 0;
+    
+    // Count confirmed attendees (assuming you have an attendance or registration table)
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM registrations WHERE Status = 'Confirmed'");
+    $confirmedAttendees = $stmt->fetch()['count'] ?? 0;
+    
+    // Count pending applications (assuming you have an applications table)
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM applications WHERE Status = 'Pending'");
+    $pendingApplications = $stmt->fetch()['count'] ?? 0;
+} catch (Exception $e) {
+    // Fallback to 0 if tables don't exist yet
+    $activeEvents = 0;
+    $totalDonations = 0;
+    $confirmedAttendees = 0;
+    $pendingApplications = 0;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -56,16 +81,18 @@ if ($hour < 12) {
             backdrop-filter: blur(20px);
             border-right: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
-            padding: 20px 0;
             z-index: 1000;
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Hide scrollbar overflow on container */
         }
 
         .sidebar-header {
             text-align: center;
             padding: 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 30px;
+            flex-shrink: 0; /* Prevent header from shrinking */
         }
 
         .sidebar-header h2 {
@@ -81,6 +108,39 @@ if ($hour < 12) {
             font-size: 12px;
             opacity: 0.7;
             margin-top: 5px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden;
+            padding: 20px 0;
+        }
+
+        /* Custom scrollbar styling */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            transition: background 0.3s ease;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* For Firefox */
+        .sidebar-nav {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
         }
 
         .nav-item {
@@ -350,6 +410,7 @@ if ($hour < 12) {
             bottom: 30px;
             right: 30px;
             z-index: 1000;
+            display: none;
         }
 
         .fab {
@@ -378,6 +439,7 @@ if ($hour < 12) {
                 width: 100%;
                 height: auto;
                 position: relative;
+                max-height: 60vh; /* Limit height on mobile */
             }
             
             .main {
@@ -403,6 +465,24 @@ if ($hour < 12) {
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+
+        /* Scroll indicator for better UX */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            animation: bounce 2s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-5px); }
+            60% { transform: translateX(-50%) translateY(-3px); }
+        }
     </style>
 </head>
 <body>
@@ -412,59 +492,65 @@ if ($hour < 12) {
             <div class="subtitle">Staff Portal</div>
         </div>
         
-        <div class="nav-item">
-            <a href="staff_account.php">
-                <i class="fas fa-user-circle"></i>
-                My Account
-            </a>
+        <div class="sidebar-nav">
+            <div class="nav-item">
+                <a href="staff_account.php">
+                    <i class="fas fa-user-circle"></i>
+                    My Account
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="create_event.php">
+                    <i class="fas fa-calendar-plus"></i>
+                    Create Event
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="staff_view_event.php">
+                    <i class="fas fa-calendar-alt"></i>
+                    View Events
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="staff_view_donation.php">
+                    <i class="fas fa-hand-holding-heart"></i>
+                    View Donations
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="confirm_attendance.php">
+                    <i class="fas fa-check-circle"></i>
+                    Confirm Attendance
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="update_donor_application.php">
+                    <i class="fas fa-sync-alt"></i>
+                    Update Application
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="create_reward.php">
+                    <i class="fas fa-gift"></i>
+                    Create Rewards
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="generate_report.php">
+                    <i class="fas fa-chart-line"></i>
+                    Generate Report
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="logout.php">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
         </div>
-        <div class="nav-item">
-            <a href="create_event.php">
-                <i class="fas fa-calendar-plus"></i>
-                Create Event
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="view_event.php">
-                <i class="fas fa-calendar-alt"></i>
-                View Events
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="view_donation.php">
-                <i class="fas fa-hand-holding-heart"></i>
-                View Donations
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="confirm_attendance.php">
-                <i class="fas fa-check-circle"></i>
-                Confirm Attendance
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="update_application.php">
-                <i class="fas fa-sync-alt"></i>
-                Update Application
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="create_reward.php">
-                <i class="fas fa-gift"></i>
-                Create Rewards
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="generate_report.php">
-                <i class="fas fa-chart-line"></i>
-                Generate Report
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="logout.php">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </a>
+        
+        <div class="scroll-indicator" id="scrollIndicator">
+            <i class="fas fa-chevron-down"></i>
         </div>
     </div>
 
@@ -478,20 +564,20 @@ if ($hour < 12) {
         </div>
 
         <div class="stats-bar">
-            <div class="stat-item pulse">
-                <div class="stat-number">24</div>
+            <div class="stat-item">
+                <div class="stat-number"><?= $activeEvents ?></div>
                 <div class="stat-label">Active Events</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">156</div>
+                <div class="stat-number"><?= $totalDonations ?></div>
                 <div class="stat-label">Total Donations</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">89</div>
+                <div class="stat-number"><?= $confirmedAttendees ?></div>
                 <div class="stat-label">Confirmed Attendees</div>
             </div>
             <div class="stat-item">
-                <div class="stat-number">12</div>
+                <div class="stat-number"><?= $pendingApplications ?></div>
                 <div class="stat-label">Pending Applications</div>
             </div>
         </div>
@@ -530,7 +616,7 @@ if ($hour < 12) {
                         <i class="fas fa-plus"></i>
                         Create Event
                     </a>
-                    <a href="view_event.php" class="btn">
+                    <a href="staff_view_event.php" class="btn">
                         <i class="fas fa-list"></i>
                         View Events
                     </a>
@@ -556,7 +642,7 @@ if ($hour < 12) {
                     Track donations, confirm attendance, and manage donor applications.
                 </div>
                 <div class="card-actions">
-                    <a href="view_donation.php" class="btn">
+                    <a href="staff_view_donation.php" class="btn">
                         <i class="fas fa-eye"></i>
                         View Donations
                     </a>
@@ -564,7 +650,7 @@ if ($hour < 12) {
                         <i class="fas fa-check"></i>
                         Confirm Attendance
                     </a>
-                    <a href="update_application.php" class="btn">
+                    <a href="update_donor_application.php" class="btn">
                         <i class="fas fa-clipboard-check"></i>
                         Update Applications
                     </a>
@@ -595,10 +681,32 @@ if ($hour < 12) {
         </div>
     </div>
 
-    <div class="quick-actions">
-        <button class="fab" onclick="window.location.href='create_event.php'" title="Quick Create Event">
-            <i class="fas fa-plus"></i>
-        </button>
-    </div>
+    <script>
+        // Hide scroll indicator when user scrolls or when content doesn't overflow
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarNav = document.querySelector('.sidebar-nav');
+            const scrollIndicator = document.getElementById('scrollIndicator');
+            
+            function checkScrollability() {
+                if (sidebarNav.scrollHeight <= sidebarNav.clientHeight) {
+                    scrollIndicator.style.display = 'none';
+                } else {
+                    scrollIndicator.style.display = 'block';
+                }
+            }
+            
+            sidebarNav.addEventListener('scroll', function() {
+                if (this.scrollTop > 20) {
+                    scrollIndicator.style.opacity = '0';
+                } else {
+                    scrollIndicator.style.opacity = '1';
+                }
+            });
+            
+            // Check scrollability on load and resize
+            checkScrollability();
+            window.addEventListener('resize', checkScrollability);
+        });
+    </script>
 </body>
 </html>

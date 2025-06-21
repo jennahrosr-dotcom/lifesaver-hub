@@ -368,7 +368,7 @@ $eventStats = $statsQuery->fetchAll();
     <h2>🩸 LifeSaver Hub</h2>
     <a href="staff_account.php">👤 My Account</a>
     <a href="create_event.php" class="active">📅 Create Event</a>
-    <a href="view_event.php">👁️ View Events</a>
+    <a href="staff_view_event.php">👁️ View Events</a>
     <a href="view_donation.php">🩸 View Donations</a>
     <a href="confirm_attendance.php">✅ Confirm Attendance</a>
     <a href="update_application.php">📝 Update Application</a>
@@ -510,7 +510,7 @@ $eventStats = $statsQuery->fetchAll();
                         Staff ID: <?= htmlspecialchars($event['StaffID']) ?>
                     </td>
                     <td>
-                        <a href="view_event.php?id=<?= $event['EventID'] ?>" style="color: #1d3557; text-decoration: none;">👁️ View</a><br>
+                        <a href="staff_view_event.php?id=<?= $event['EventID'] ?>" style="color: #1d3557; text-decoration: none;">👁️ View</a><br>
                         <a href="update_event.php?id=<?= $event['EventID'] ?>" style="color: #457b9d; text-decoration: none;">✏️ Edit</a>
                     </td>
                 </tr>
