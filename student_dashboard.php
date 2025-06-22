@@ -613,9 +613,9 @@ try {
             <a href="dashboard.php" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
             <a href="student_view_event.php"><i class="fas fa-calendar-heart"></i> View Events</a>
             <a href="notifications.php"><i class="fas fa-bell"></i> Notifications</a>
-            <a href="view_donation.php"><i class="fas fa-tint"></i> View Donation</a>
+            <a href="student_view_donation.php"><i class="fas fa-tint"></i> View Donation</a>
             <a href="donation_history.php"><i class="fas fa-history"></i> Donation History</a>
-            <a href="view_rewards.php"><i class="fas fa-trophy"></i> My Rewards</a>
+            <a href="view_reward.php"><i class="fas fa-trophy"></i> My Rewards</a>
             <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </nav>
     </div>
@@ -667,7 +667,7 @@ try {
             <div class="dashboard-section">
                 <div class="section-header">
                     <h3><i class="fas fa-calendar-alt"></i> Recent Events</h3>
-                    <a href="view_event.php" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px;">View All →</a>
+                    <a href="student_view_event.php" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px;">View All →</a>
                 </div>
                 <div class="section-content">
                     <?php if (!empty($recentEvents)): ?>
@@ -696,15 +696,15 @@ try {
                 </div>
                 <div class="section-content">
                     <div class="quick-actions">
-                        <a href="view_event.php" class="action-btn">
+                        <a href="student_view_event.php" class="action-btn">
                             <i class="fas fa-calendar-plus"></i>
                             <span>Register for Events</span>
                         </a>
-                        <a href="view_donation.php" class="action-btn">
+                        <a href="student_view_donation.php" class="action-btn">
                             <i class="fas fa-tint"></i>
                             <span>View My Donations</span>
                         </a>
-                        <a href="view_rewards.php" class="action-btn">
+                        <a href="view_reward.php" class="action-btn">
                             <i class="fas fa-gift"></i>
                             <span>Check My Rewards</span>
                         </a>

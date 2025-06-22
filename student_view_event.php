@@ -64,11 +64,13 @@ if (!empty($_GET['filter_status'])) {
     $params[] = $_GET['filter_status'];
 }
 
-// Get events with registration info
+// Get events with registration info - FIXED QUERY
 $sql = "SELECT e.*, 
         (SELECT COUNT(*) FROM registration r WHERE r.EventID = e.EventID AND r.StudentID = ? AND r.RegistrationStatus != 'Cancelled') as IsRegistered,
         (SELECT COUNT(*) FROM registration r WHERE r.EventID = e.EventID AND r.RegistrationStatus != 'Cancelled') as TotalRegistered,
-        (SELECT COUNT(*) FROM donation d WHERE d.EventID = e.EventID AND d.StudentID = ?) as HasDonated
+        (SELECT COUNT(*) FROM donation d 
+         INNER JOIN registration r ON d.RegistrationID = r.RegistrationID 
+         WHERE r.EventID = e.EventID AND r.StudentID = ?) as HasDonated
         FROM event e";
 
 if ($where) {
@@ -922,11 +924,11 @@ $stats = $statsStmt->fetch();
         <nav class="sidebar-nav">
             <a href="student_account.php"><i class="fas fa-user-graduate"></i> My Account</a>
             <a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            <a href="view_event.php" class="active"><i class="fas fa-calendar-heart"></i> View Events</a>
+            <a href="student_view_event.php" class="active"><i class="fas fa-calendar-heart"></i> View Events</a>
             <a href="notifications.php"><i class="fas fa-bell"></i> Notifications</a>
-            <a href="view_donation.php"><i class="fas fa-tint"></i> View Donation</a>
+            <a href="student_view_donation.php"><i class="fas fa-tint"></i> View Donation</a>
             <a href="donation_history.php"><i class="fas fa-history"></i> Donation History</a>
-            <a href="view_rewards.php"><i class="fas fa-trophy"></i> My Rewards</a>
+            <a href="view_reward.php"><i class="fas fa-trophy"></i> My Rewards</a>
             <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </nav>
     </div>
@@ -998,7 +1000,7 @@ $stats = $statsStmt->fetch();
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-filter"></i> Apply Filters
                     </button>
-                    <a href="view_event.php" class="btn btn-outline">
+                    <a href="student_view_event.php" class="btn btn-outline">
                         <i class="fas fa-times"></i> Clear
                     </a>
                 </div>
@@ -1229,6 +1231,19 @@ $stats = $statsStmt->fetch();
             
             status.addEventListener('mouseleave', function() {
                 this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Auto-hide alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    alert.style.opacity = '0';
+                    setTimeout(function() {
+                        alert.remove();
+                    }, 300);
+                }, 5000);
             });
         });
     </script>

@@ -4,8 +4,9 @@ $pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", 
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
 
+// Auto-update event status based on date
 $today = date('Y-m-d');
-$updateStmt = $pdo->prepare("UPDATE event SET EventStatus = 'Completed' WHERE EventDate < ? AND EventStatus NOT IN ('Completed', 'Deleted')");
+$updateStmt = $pdo->prepare("UPDATE event SET EventStatus = 'Completed' WHERE EventDate < ? AND EventStatus = 'Upcoming'");
 $updateStmt->execute([$today]);
 
 $isStaff = isset($_SESSION['staff_id']);
@@ -16,22 +17,28 @@ if (!$isStaff && !$isStudent) {
     exit;
 }
 
+// Build WHERE clause and parameters
 $where = [];
 $params = [];
 
+// Always exclude deleted events for students
 if ($isStudent) {
     $where[] = "EventStatus != 'Deleted'";
 }
 
+// Date filter
 if (!empty($_GET['filter_date'])) {
     $where[] = "EventDate = ?";
     $params[] = $_GET['filter_date'];
 }
+
+// Status filter - Fixed logic
 if (!empty($_GET['filter_status'])) {
     $where[] = "EventStatus = ?";
     $params[] = $_GET['filter_status'];
 }
 
+// Build the query
 if ($isStudent) {
     $studentId = $_SESSION['student_id'];
     $sql = "SELECT e.*, 
@@ -45,6 +52,7 @@ if ($isStudent) {
     $stmt = $pdo->prepare($sql);
     $stmt->execute(array_merge([$studentId], $params));
 } else {
+    // For staff - show all events including deleted ones
     $sql = "SELECT e.*, 
             (SELECT COUNT(*) FROM registration r WHERE r.EventID = e.EventID AND r.RegistrationStatus != 'Cancelled') as TotalRegistered
             FROM event e";
@@ -57,6 +65,10 @@ if ($isStudent) {
 }
 
 $events = $stmt->fetchAll();
+
+// Debug: Check what events we have
+// Uncomment this line to debug
+// echo "Found " . count($events) . " events. Filters: Date=" . ($_GET['filter_date'] ?? 'none') . ", Status=" . ($_GET['filter_status'] ?? 'none');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -245,6 +257,25 @@ $events = $stmt->fetchAll();
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
         }
 
+        .clear-btn {
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .clear-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
         /* Events Table */
         .events-container {
             background: rgba(255, 255, 255, 0.95);
@@ -272,7 +303,7 @@ $events = $stmt->fetchAll();
         }
 
         .table-wrapper {
-            overflow-x: visible;
+            overflow-x: auto;
             width: 100%;
         }
 
@@ -280,6 +311,7 @@ $events = $stmt->fetchAll();
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
+            min-width: 800px;
         }
 
         .events-table th {
@@ -462,6 +494,16 @@ $events = $stmt->fetchAll();
             box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
         }
 
+        .btn-email {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+        }
+
+        .btn-email:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4);
+        }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -484,6 +526,17 @@ $events = $stmt->fetchAll();
 
         .empty-state p {
             font-size: 16px;
+            color: #666;
+        }
+
+        /* Debug info */
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 12px;
             color: #666;
         }
 
@@ -526,6 +579,10 @@ $events = $stmt->fetchAll();
 
             .page-title {
                 font-size: 24px;
+            }
+
+            .events-table {
+                min-width: 600px;
             }
 
             .events-table th,
@@ -609,7 +666,7 @@ $events = $stmt->fetchAll();
                     </a>
                 </div>
                 <div class="nav-item">
-                    <a href="view_donation.php" class="nav-link">
+                    <a href="staff_view_donation.php" class="nav-link">
                         <i class="fas fa-hand-holding-heart"></i>
                         <span>View Donations</span>
                     </a>
@@ -621,7 +678,7 @@ $events = $stmt->fetchAll();
                     </a>
                 </div>
                 <div class="nav-item">
-                    <a href="update_application.php" class="nav-link">
+                    <a href="update_donor_application.php" class="nav-link">
                         <i class="fas fa-sync-alt"></i>
                         <span>Update Application</span>
                     </a>
@@ -646,6 +703,18 @@ $events = $stmt->fetchAll();
                 <p class="page-subtitle">Manage and monitor all your events in one place</p>
             </div>
 
+            <!-- Debug Info (remove this after testing) -->
+            <?php if (isset($_GET['debug'])): ?>
+            <div class="debug-info">
+                <strong>Debug Info:</strong><br>
+                Total Events Found: <?= count($events) ?><br>
+                Filters Applied: Date = "<?= htmlspecialchars($_GET['filter_date'] ?? 'none') ?>", 
+                Status = "<?= htmlspecialchars($_GET['filter_status'] ?? 'none') ?>"<br>
+                SQL Query: <?= $sql ?><br>
+                Parameters: <?= implode(', ', $params) ?>
+            </div>
+            <?php endif; ?>
+
             <!-- Filters Section -->
             <div class="filters-section">
                 <form method="GET" action="">
@@ -665,9 +734,6 @@ $events = $stmt->fetchAll();
                                 <option value="Completed" <?= ($_GET['filter_status'] ?? '') === 'Completed' ? 'selected' : '' ?>>
                                     Completed
                                 </option>
-                                <option value="Deleted" <?= ($_GET['filter_status'] ?? '') === 'Deleted' ? 'selected' : '' ?>>
-                                    Deleted
-                                </option>
                             </select>
                         </div>
                         <div class="filter-group">
@@ -675,6 +741,12 @@ $events = $stmt->fetchAll();
                                 <i class="fas fa-search"></i>
                                 Apply Filters
                             </button>
+                        </div>
+                        <div class="filter-group">
+                            <a href="staff_view_event.php" class="clear-btn">
+                                <i class="fas fa-times"></i>
+                                Clear Filters
+                            </a>
                         </div>
                     </div>
                 </form>
@@ -686,6 +758,9 @@ $events = $stmt->fetchAll();
                     <h3 class="table-title">All Events</h3>
                     <p class="table-subtitle">
                         <?= count($events) ?> event<?= count($events) !== 1 ? 's' : '' ?> found
+                        <?php if (!empty($_GET['filter_date']) || !empty($_GET['filter_status'])): ?>
+                            (filtered)
+                        <?php endif; ?>
                     </p>
                 </div>
 
@@ -693,7 +768,13 @@ $events = $stmt->fetchAll();
                     <div class="empty-state">
                         <i class="fas fa-calendar-times"></i>
                         <h3>No Events Found</h3>
-                        <p>There are no events matching your current filters.</p>
+                        <p>
+                            <?php if (!empty($_GET['filter_date']) || !empty($_GET['filter_status'])): ?>
+                                There are no events matching your current filters. <a href="staff_view_event.php">Clear filters</a> to see all events.
+                            <?php else: ?>
+                                There are no events in the system yet.
+                            <?php endif; ?>
+                        </p>
                     </div>
                 <?php else: ?>
                     <div class="table-wrapper">
@@ -743,17 +824,42 @@ $events = $stmt->fetchAll();
                                         </td>
                                         <td>
                                             <div class="action-buttons">
-                                                <a href="update_event.php?id=<?= $event['EventID'] ?>" 
-                                                   class="action-btn btn-edit">
-                                                    <i class="fas fa-edit"></i>
-                                                    Edit
-                                                </a>
-                                                <a href="delete_event.php?id=<?= $event['EventID'] ?>" 
-                                                   class="action-btn btn-delete"
-                                                   onclick="return confirm('Are you sure you want to delete this event?')">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                    Delete
-                                                </a>
+                                                <?php if ($isStaff): ?>
+                                                    <!-- Email notification button for staff -->
+                                                    <a href="send_event_notification.php?event_id=<?= $event['EventID'] ?>" 
+                                                       class="action-btn btn-email" 
+                                                       title="Send email notification to all students">
+                                                        <i class="fas fa-envelope"></i>
+                                                        Email
+                                                    </a>
+                                                    
+                                                    <a href="update_event.php?id=<?= $event['EventID'] ?>" 
+                                                       class="action-btn btn-edit">
+                                                        <i class="fas fa-edit"></i>
+                                                        Edit
+                                                    </a>
+                                                    
+                                                    <a href="delete_event.php?id=<?= $event['EventID'] ?>" 
+                                                       class="action-btn btn-delete"
+                                                       onclick="return confirm('Are you sure you want to delete this event?')">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                        Delete
+                                                    </a>
+                                                <?php else: ?>
+                                                    <!-- Student view - only show register button -->
+                                                    <?php if ($event['IsRegistered'] > 0): ?>
+                                                        <span class="action-btn" style="background: #28a745; color: white;">
+                                                            <i class="fas fa-check"></i>
+                                                            Registered
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <a href="register_event.php?id=<?= $event['EventID'] ?>" 
+                                                           class="action-btn btn-edit">
+                                                            <i class="fas fa-user-plus"></i>
+                                                            Register
+                                                        </a>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -798,7 +904,48 @@ $events = $stmt->fetchAll();
             setTimeout(function() {
                 window.location.reload();
             }, 300000); // 5 minutes
+
+            // Add success message display if coming from email send
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('email_sent') === 'success') {
+                showNotification('Email notifications sent successfully!', 'success');
+            } else if (urlParams.get('email_sent') === 'error') {
+                showNotification('Failed to send email notifications.', 'error');
+            }
         });
+
+        // Show notification function
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'success' ? 'linear-gradient(135deg, #28a745, #20c997)' : 'linear-gradient(135deg, #dc3545, #e74c3c)'};
+                color: white;
+                border-radius: 10px;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-weight: 600;
+                transform: translateX(400px);
+                transition: all 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(400px)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 4000);
+        }
     </script>
 </body>
 </html>
