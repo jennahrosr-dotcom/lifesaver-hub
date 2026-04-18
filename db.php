@@ -14,5 +14,5 @@ if ($conn->connect_error) {
 }
 
 // Optional success message for testing only (comment this out in production)
-# echo "Connected to the lifesaver database successfully.";
+echo "Connected to the lifesaver database successfully.";
 ?>

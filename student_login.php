@@ -1,6 +1,6 @@
 <?php
 session_start();
-$pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
+$pdo = new PDO("mysql:host=127.0.0.1;port=3307;dbname=lifesaver;charset=utf8mb4", "root", "", [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
 
@@ -156,7 +156,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <form method="POST">
             <div class="form-group">
-                <label for="username">STUDENT NAME</label>
+                <label for="username">USERNAME</label>
                 <input type="text" name="username" id="username" required>
             </div>
 

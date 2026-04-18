@@ -148,11 +148,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?php endif; ?>
         <form method="POST">
             <div class="form-group">
-                <label for="staff_name">Staff Name</label>
+                <label for="staff_name">USERNAME</label>
                 <input type="text" id="staff_name" name="staff_name" required>
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">PASSWORD</label>
                 <input type="password" id="password" name="password" required>
             </div>
             <button type="submit" class="submit-btn">LOGIN</button>
