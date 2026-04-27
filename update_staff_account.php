@@ -6,9 +6,7 @@ if (!isset($_SESSION['staff_id'])) {
     exit;
 }
 
-$pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-]);
+require 'db.php';
 
 $stmt = $pdo->prepare("SELECT * FROM staff WHERE StaffID = ?");
 $stmt->execute([$_SESSION['staff_id']]);

@@ -19,9 +19,7 @@ $eventTitle = $confirmData['event_title'];
 $confirmedRegistrations = $confirmData['confirmed_registrations'];
 
 // Get staff information
-$pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-]);
+require 'db.php';
 
 $stmt = $pdo->prepare("SELECT * FROM staff WHERE StaffID = ?");
 $stmt->execute([$_SESSION['staff_id']]);

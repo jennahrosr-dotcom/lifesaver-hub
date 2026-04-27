@@ -1,18 +1,23 @@
 <?php
-// db.php - Connects to MySQL database via phpMyAdmin
+// db.php - PDO connection for LifeSaver Hub
 
-$db_host = 'localhost';     // or 127.0.0.1
-$db_user = 'root';          // default for XAMPP
-$db_pass = '';              // empty for default XAMPP
-$db_name = 'lifesaver';     // your database name
+$host = '127.0.0.1';
+$port = 3307; // IMPORTANT: match your XAMPP MySQL port
+$dbname = 'lifesaver';
+$username = 'root';
+$password = '';
 
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+try {
+    $pdo = new PDO(
+        "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4",
+        $username,
+        $password,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]
+    );
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
 }
-
-// Optional success message for testing only (comment this out in production)
-echo "Connected to the lifesaver database successfully.";
 ?>

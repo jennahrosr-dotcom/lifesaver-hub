@@ -1,8 +1,6 @@
 <?php
 session_start();
-$pdo = new PDO("mysql:host=127.0.0.1;port=3307;dbname=lifesaver;charset=utf8mb4", "root", "", [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-]);
+require 'db.php';
 
 $error = "";
 

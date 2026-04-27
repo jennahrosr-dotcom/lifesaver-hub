@@ -8,9 +8,7 @@ if (!isset($_SESSION['staff_id'])) {
 }
 
 // Database connection
-$pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-]);
+require 'db.php';
 
 // Check if event ID is provided
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {

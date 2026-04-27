@@ -6,9 +6,7 @@ if (!isset($_SESSION['student_id'])) {
     exit;
 }
 
-$pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-]);
+require 'db.php';
 
 // Get current user data
 $stmt = $pdo->prepare("SELECT * FROM student WHERE StudentID = ?");

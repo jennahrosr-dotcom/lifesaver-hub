@@ -8,10 +8,7 @@ if (!isset($_SESSION['student_id'])) {
 
 // Database connection with error handling
 try {
-    $pdo = new PDO("mysql:host=localhost;dbname=lifesaver;charset=utf8mb4", "root", "", [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]);
+    require 'db.php';
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
