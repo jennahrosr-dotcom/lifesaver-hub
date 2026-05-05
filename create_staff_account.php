@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db.php';
+require_once 'config.php';
 
 // Generate CSRF token
 if (!isset($_SESSION['csrf_token'])) {
@@ -14,12 +14,12 @@ if (!isset($_SESSION['staff_id'])) {
 }
 
 // Enhanced super staff check (works with existing table structure)
-$stmt = $conn->prepare("SELECT StaffName, StaffEmail FROM staff WHERE StaffID = ?");
-$stmt->bind_param("i", $_SESSION['staff_id']);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentStaff = $result->fetch_assoc();
-$stmt->close();
+$pdo = getDbConnection();
+
+$stmt = $pdo->prepare("SELECT StaffName, StaffEmail FROM staff WHERE StaffID = ?");
+$stmt->execute([$_SESSION['staff_id']]);
+
+$currentStaff = $stmt->fetch();
 
 // Check super staff privileges (using existing StaffID = 1 method)
 $isSuperStaff = false;
